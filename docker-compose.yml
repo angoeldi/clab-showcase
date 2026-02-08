@@ -1,0 +1,35 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      CLAB_APP_MODULE: "${CLAB_APP_MODULE:-haiku_example.server:app}"
+      CLAB_MODEL: "${CLAB_MODEL:-gpt-5-nano}"
+      CLAB_CHECKPOINTER: "${CLAB_CHECKPOINTER:-sqlite}"
+      CLAB_SQLITE_PATH: "${CLAB_SQLITE_PATH:-./.clab/checkpoints.sqlite3}"
+      CLAB_POSTGRES_URI: "${CLAB_POSTGRES_URI:-}"
+      CLAB_DOMAIN_PATH: "${CLAB_DOMAIN_PATH:-configs/examples/haiku_tutor/domain.yaml}"
+      CLAB_TUTORIAL_PATH: "${CLAB_TUTORIAL_PATH:-configs/examples/haiku_tutor/tutorial.yaml}"
+      CLAB_USERS_PATH: "${CLAB_USERS_PATH:-configs/examples/haiku_tutor/users.yaml}"
+      CLAB_USERS_STATE_PATH: "${CLAB_USERS_STATE_PATH:-./.clab/user_sessions.json}"
+      CLAB_REGISTERED_USERS_STATE_PATH: "${CLAB_REGISTERED_USERS_STATE_PATH:-./.clab/registered_users.json}"
+      CLAB_BASIC_AUTH_ENABLED: "${CLAB_BASIC_AUTH_ENABLED:-true}"
+    volumes:
+      - ./.clab:/app/.clab
+
+  db:
+    image: postgres:16
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

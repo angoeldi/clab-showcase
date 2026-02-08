@@ -1,0 +1,72 @@
+meta:
+  name: "Tutorial: MI Coach for Problematic Social Media Use"
+  version: "2026-02-07"
+  description: |
+    A short UI overlay that explains the MI coaching workflow and how to use this console.
+
+enabled: true
+start_when:
+  - ui_overlay
+
+steps:
+  - id: "runtime-panel"
+    title: "What This Coach Does"
+    body_md: |
+      This is a Motivational Interviewing (MI) style coach to help you **reduce or reshape** social media use.
+
+      MI means you stay in control: **you choose the goal**, and the assistant helps you clarify it, strengthen motivation, and design small experiments.
+    cta: "Next"
+
+  - id: "compose-panel"
+    title: "The conversation cycle"
+    body_md: |
+      We iterate a simple loop:
+
+      1) **Engage**: rapport + consent  
+      2) **Focus**: agree on a specific target  
+      3) **Evoke**: your reasons, values, and ambivalence  
+      4) **Plan**: one small experiment  
+      5) **Maintain**: review, troubleshoot, adjust  
+
+      You can jump stages any time. If you want direct tactics, ask directly; the coach will still ask permission before advising.
+    cta: "Next"
+
+  - id: "quick-actions"
+    title: "How Responses Are Shaped"
+    body_md: |
+      Expect this pattern:
+
+      - a brief **reflection** (so you know I understood)
+      - sometimes an **affirmation** (strengths, effort, values)
+      - then **one open question** to move forward
+
+      If I infer something, I will mark it as a *hypothesis* and ask you to confirm.
+    cta: "Next"
+
+  - id: "reasoning-panel"
+    title: "Reasoning Stream"
+    body_md: |
+      The stream shows node updates (`ingest`, `analyze`, `act`, `compose`) so you can inspect how each response was produced.
+
+      Use it to debug domain rules and confirm action-policy behavior turn by turn.
+    cta: "Next"
+
+  - id: "status-panel"
+    title: "Status And Resume"
+    body_md: |
+      The status panel tracks:
+
+      - current goal and constraints
+      - MI stage
+      - next-step memory for later sessions
+
+      To resume with continuity, keep the same thread id or inspect `/threads/{thread_id}/status`.
+    cta: "Next"
+
+  - id: "auth-bar"
+    title: "Auth And Safety"
+    body_md: |
+      Use Guest for quick testing or Login/Register for persistent user sessions.
+
+      If the user mentions self-harm, violence, or severe crisis signals, the assistant shifts into safety-first guidance.
+    cta: "Finish"

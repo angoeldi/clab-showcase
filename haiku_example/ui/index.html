@@ -1,0 +1,2538 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Haiku Expert Chat</title>
+    <style>
+      :root {
+        --bg: #f4efe5;
+        --panel: #fff9ef;
+        --ink: #132126;
+        --muted: #5d6467;
+        --line: #d6cbb7;
+        --accent: #1d6b64;
+        --accent-2: #c0692d;
+        --danger: #9d2b22;
+        --user: #fff1d9;
+        --assistant: #e7f8f0;
+        --reasoning: #edf0ff;
+        --focus: #0f766e;
+        --thinking-live-height: 110px;
+      }
+
+      body[data-theme="dark"] {
+        --bg: #11181c;
+        --panel: #172126;
+        --ink: #e8f4f4;
+        --muted: #9ab0b0;
+        --line: #2e4344;
+        --accent: #35a89d;
+        --accent-2: #d59862;
+        --danger: #ef7f72;
+        --user: #2f3c42;
+        --assistant: #223c35;
+        --reasoning: #222b45;
+        --focus: #81e6d9;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at 8% 10%, rgba(255, 229, 190, 0.25) 0%, transparent 28%),
+          radial-gradient(circle at 88% 14%, rgba(217, 240, 237, 0.22) 0%, transparent 24%),
+          var(--bg);
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible,
+      article:focus-visible,
+      summary:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 25;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+        background: color-mix(in srgb, var(--panel) 92%, transparent);
+        backdrop-filter: blur(6px);
+      }
+
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        min-width: 0;
+      }
+
+      .topbar-input {
+        height: 34px;
+        min-width: 120px;
+        max-width: 170px;
+        padding: 7px 9px;
+        border-radius: 10px;
+      }
+
+      .topbar-auth-state {
+        font-size: 11px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      .topbar-title {
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+
+      .topbar-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .layout {
+        position: relative;
+        height: calc(100vh - 60px);
+        padding: 14px;
+      }
+
+      .chat-column {
+        max-width: 900px;
+        margin: 0 auto;
+        height: 100%;
+        display: grid;
+        gap: 12px;
+        grid-template-rows: minmax(0, 1fr) auto;
+      }
+
+      .panel {
+        background: color-mix(in srgb, var(--panel) 96%, transparent);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        box-shadow: 0 1px 0 color-mix(in srgb, var(--line) 70%, transparent);
+        min-width: 0;
+      }
+
+      .panel-head {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .panel-body {
+        padding: 14px;
+      }
+
+      .transcript-panel {
+        min-height: 0;
+      }
+
+      .log-wrap {
+        position: relative;
+        height: 100%;
+      }
+
+      .log {
+        height: 100%;
+        min-height: 320px;
+        max-height: calc(100vh - 260px);
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .msg,
+      .reasoning-item {
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        padding: 12px 13px;
+        max-width: min(78ch, 90%);
+      }
+
+      body[data-density="compact"] .msg,
+      body[data-density="compact"] .reasoning-item {
+        padding: 8px 10px;
+      }
+
+      .msg.user {
+        margin-left: auto;
+        background: var(--user);
+      }
+
+      .msg.assistant {
+        margin-right: auto;
+        background: var(--assistant);
+      }
+
+      .msg.reasoning,
+      .reasoning-item {
+        margin-right: auto;
+        background: var(--reasoning);
+      }
+
+      .msg.grouped .who {
+        display: none;
+      }
+
+      .who {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 4px;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .delivery {
+        font-size: 10px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .jump-bottom {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--panel) 97%, transparent);
+        color: var(--ink);
+        box-shadow: 0 7px 20px rgba(0, 0, 0, 0.18);
+      }
+
+      .msg.thinking {
+        background: color-mix(in srgb, var(--assistant) 86%, white);
+      }
+
+      .thinking-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: flex-start;
+        column-gap: 10px;
+        color: var(--muted);
+        font-size: 13px;
+        width: min(76ch, 95vw);
+        max-width: 100%;
+      }
+
+      .spinner {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        border: 2px solid color-mix(in srgb, var(--line) 75%, transparent);
+        border-top-color: var(--accent);
+        display: inline-block;
+        margin-top: 8px;
+        flex: 0 0 auto;
+        animation: spin 700ms linear infinite;
+      }
+
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .turn-reasoning {
+        margin-top: 10px;
+        border-top: 1px dashed var(--line);
+        padding-top: 8px;
+      }
+
+      .turn-reasoning summary {
+        cursor: pointer;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+
+      .turn-reasoning-list {
+        margin-top: 8px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .turn-reasoning-item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--reasoning) 74%, transparent);
+        padding: 8px 9px;
+      }
+
+      .turn-reasoning-item[data-kind="generated"] {
+        border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+        background: color-mix(in srgb, var(--assistant) 35%, var(--reasoning));
+      }
+
+      .turn-reasoning-item[data-kind="status"] {
+        border-style: dashed;
+      }
+
+      .turn-reasoning-item[data-kind="deterministic"] {
+        border-color: color-mix(in srgb, var(--accent-2) 55%, var(--line));
+        background: color-mix(in srgb, var(--panel) 82%, var(--reasoning));
+      }
+
+      .turn-reasoning-item .who {
+        margin-bottom: 3px;
+        font-size: 10px;
+      }
+
+      .message-body {
+        margin: 0;
+        overflow-wrap: anywhere;
+        line-height: 1.45;
+      }
+
+      .message-body.plain {
+        white-space: pre-wrap;
+        font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+        font-size: 12px;
+      }
+
+      .message-body.md {
+        white-space: normal;
+        font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+        font-size: 13px;
+      }
+
+      .message-body.md p {
+        margin: 0 0 8px;
+      }
+
+      .message-body.md p:last-child {
+        margin-bottom: 0;
+      }
+
+      .message-body.md ul,
+      .message-body.md ol {
+        margin: 0 0 8px 20px;
+        padding: 0;
+      }
+
+      .message-body.md li {
+        margin: 2px 0;
+      }
+
+      .message-body.md code {
+        font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+        font-size: 12px;
+        background: color-mix(in srgb, var(--line) 35%, transparent);
+        border-radius: 6px;
+        padding: 1px 5px;
+      }
+
+      .message-body.md pre.md-code {
+        margin: 0 0 8px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 10px;
+        background: color-mix(in srgb, var(--panel) 90%, transparent);
+        font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+        font-size: 12px;
+      }
+
+      .message-body.md pre.md-code:last-child {
+        margin-bottom: 0;
+      }
+
+      .message-body.md a {
+        color: var(--accent);
+        text-decoration: underline;
+      }
+
+      .node-chip {
+        position: relative;
+        border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line));
+        border-radius: 12px;
+        padding: 0;
+        font-size: 12px;
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        min-height: var(--thinking-live-height);
+        max-height: var(--thinking-live-height);
+        overflow: hidden;
+        line-height: 1.35;
+        background: color-mix(in srgb, var(--reasoning) 82%, white);
+        color: var(--ink);
+        box-shadow:
+          inset 0 0 0 1px color-mix(in srgb, var(--panel) 55%, transparent),
+          0 2px 6px rgba(0, 0, 0, 0.08);
+      }
+
+      .node-chip[data-kind="generated"] {
+        border-color: color-mix(in srgb, var(--accent) 65%, var(--line));
+      }
+
+      .node-chip[data-kind="status"] {
+        border-style: dashed;
+        color: var(--muted);
+      }
+
+      .node-chip[data-kind="deterministic"] {
+        border-color: color-mix(in srgb, var(--accent-2) 60%, var(--line));
+      }
+
+      .thinking-row.done .node-chip {
+        opacity: 0.85;
+      }
+
+      .thinking-live-body {
+        position: absolute;
+        inset: 0;
+        box-sizing: border-box;
+        overflow: auto;
+        padding: 10px 14px 12px 12px;
+        scrollbar-gutter: stable both-edges;
+        scrollbar-width: thin;
+      }
+
+      .thinking-live-body::after {
+        content: "";
+        display: block;
+        height: var(--thinking-live-scroll-buffer, 0px);
+      }
+
+      .thinking-live-body.message-body.md {
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .thinking-live-body.message-body.md p {
+        margin: 0 0 6px;
+      }
+
+      .thinking-live-body.message-body.md p:last-child {
+        margin-bottom: 0;
+      }
+
+      .thinking-live-body.message-body.md ul,
+      .thinking-live-body.message-body.md ol {
+        margin: 0 0 6px 18px;
+        padding: 0;
+      }
+
+      .thinking-live-fade {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 14px;
+        pointer-events: none;
+        background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--reasoning) 90%, var(--panel)));
+      }
+
+      .thinking-live-progress {
+        position: absolute;
+        top: 9px;
+        right: 5px;
+        bottom: 10px;
+        width: 4px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--line) 70%, transparent);
+        overflow: hidden;
+        opacity: 0;
+        transition: opacity 180ms ease;
+      }
+
+      .thinking-live-progress > span {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 999px;
+        background: var(--accent);
+        transform-origin: top center;
+        transform: scaleY(var(--thinking-scroll-progress, 0));
+        transition: transform 120ms linear;
+      }
+
+      .node-chip[data-scrolling="1"] .thinking-live-progress {
+        opacity: 0.85;
+      }
+
+      .node-chip.flash {
+        animation: nodeFlash 760ms ease 1;
+      }
+
+      @keyframes nodeFlash {
+        0% {
+          box-shadow: 0 0 0 0 rgba(29, 107, 100, 0.42);
+        }
+        65% {
+          box-shadow: 0 0 0 14px rgba(29, 107, 100, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(29, 107, 100, 0);
+        }
+      }
+
+      .composer-panel .panel-body {
+        display: grid;
+        gap: 10px;
+      }
+
+      input,
+      textarea,
+      button,
+      select {
+        font: inherit;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        color: #111;
+      }
+
+      body[data-theme="dark"] input,
+      body[data-theme="dark"] textarea,
+      body[data-theme="dark"] select {
+        background: #0f1618;
+        color: var(--ink);
+      }
+
+      textarea {
+        min-height: 64px;
+        max-height: 220px;
+        resize: none;
+        overflow: auto;
+      }
+
+      .composer-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .quick-wrap {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0 10px 10px;
+        background: color-mix(in srgb, var(--panel) 93%, transparent);
+      }
+
+      .quick-wrap summary {
+        cursor: pointer;
+        padding: 8px 0;
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      button {
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: transform 120ms ease;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+
+      .primary {
+        background: var(--accent);
+        color: #f5fffd;
+      }
+
+      .secondary {
+        background: transparent;
+        border-color: var(--line);
+        color: var(--ink);
+      }
+
+      .warn {
+        background: transparent;
+        border-color: var(--accent-2);
+        color: color-mix(in srgb, var(--accent-2) 70%, var(--ink));
+      }
+
+      .subtle {
+        justify-self: start;
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .error {
+        min-height: 18px;
+        color: var(--danger);
+        font-size: 13px;
+      }
+
+      .debug-column {
+        position: fixed;
+        z-index: 24;
+        top: 84px;
+        bottom: 12px;
+        width: min(390px, calc(100vw - 28px));
+        max-height: none;
+        overflow: auto;
+        display: grid;
+        gap: 10px;
+        padding: 4px;
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--bg) 70%, transparent);
+        backdrop-filter: blur(6px);
+        transform: translateX(calc(100% + 18px));
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 160ms ease, opacity 160ms ease;
+        right: 14px;
+      }
+
+      .layout:not(.debug-closed) .debug-column {
+        transform: translateX(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .reasoning-log {
+        max-height: 250px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .runtime-grid,
+      .controls-grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .runtime-line {
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+
+      .toggle-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .session-note {
+        font-size: 12px;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+
+      .tutorial-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+      }
+
+      .tutorial-spotlight {
+        position: fixed;
+        border-radius: 14px;
+        border: 2px solid color-mix(in srgb, var(--accent) 95%, white);
+        box-shadow: 0 0 0 9999px rgba(8, 7, 4, 0.62), 0 0 30px color-mix(in srgb, var(--accent) 45%, transparent);
+        pointer-events: none;
+      }
+
+      .tutorial-card {
+        position: fixed;
+        width: 350px;
+        max-width: min(92vw, 370px);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        box-shadow: 0 24px 50px rgba(0, 0, 0, 0.2);
+        display: grid;
+        gap: 8px;
+      }
+
+      .tutorial-progress {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .tutorial-title {
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .tutorial-body {
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .tutorial-actions {
+        margin-top: 6px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .tutorial-spacer {
+        flex: 1;
+      }
+
+      @media (max-width: 860px) {
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .topbar-left,
+        .topbar-actions {
+          width: 100%;
+        }
+
+        .topbar-input {
+          min-width: 110px;
+          max-width: 100%;
+          flex: 1 1 130px;
+        }
+
+        .layout {
+          padding: 10px;
+        }
+
+        .chat-column {
+          max-width: 100%;
+        }
+
+        .log {
+          max-height: calc(100vh - 280px);
+          min-height: 260px;
+        }
+
+        .msg,
+        .reasoning-item {
+          max-width: 100%;
+        }
+
+        .debug-column {
+          top: auto;
+          bottom: 58px;
+          right: 12px;
+          max-height: min(70vh, 620px);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition: none !important;
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="topbar-left" data-tutorial-id="auth-bar">
+        <input id="authUser" class="topbar-input" placeholder="user id" autocomplete="username" />
+        <input id="authPass" class="topbar-input" type="password" placeholder="password" autocomplete="current-password" />
+        <button id="loginBtn" class="secondary" type="button">Log in</button>
+        <button id="registerBtn" class="secondary" type="button">Register</button>
+        <input id="guestCode" class="topbar-input" placeholder="guest code (optional)" />
+        <button id="guestBtn" class="secondary" type="button">Guest</button>
+        <span id="navAuthState" class="topbar-auth-state">Guest</span>
+      </div>
+      <div id="appTitle" class="topbar-title">Haiku Expert Chat</div>
+      <div class="topbar-actions">
+        <button id="newChatBtn" class="secondary" type="button">New chat</button>
+        <button id="tutorialOpen" class="secondary" type="button" aria-label="Open tutorial" title="Open tutorial">Tutorial</button>
+        <button id="debugToggle" class="secondary" type="button" data-tutorial-id="dev-toggle">Tools</button>
+      </div>
+    </div>
+
+    <main id="layout" class="layout debug-closed">
+      <div class="chat-column">
+        <section class="panel transcript-panel" data-tutorial-id="transcript-panel">
+          <div class="log-wrap" data-tutorial-id="reasoning-panel">
+            <section id="log" class="log" role="log" aria-live="polite" aria-relevant="additions"></section>
+            <button id="jumpBottomBtn" class="jump-bottom" type="button" hidden>Jump to latest</button>
+          </div>
+        </section>
+
+        <section class="panel composer-panel" data-tutorial-id="compose-panel">
+          <div class="panel-body">
+            <textarea id="message" placeholder="Write your haiku attempt, or ask for coaching..."></textarea>
+
+            <div class="composer-actions">
+              <button class="primary" id="sendBtn" type="button">Send</button>
+              <button class="warn" id="stopBtn" type="button" disabled>Stop generating</button>
+              <button class="secondary" id="regenBtn" type="button" disabled>Regenerate</button>
+              <button class="secondary subtle" id="clearBtn" type="button">Clear transcript</button>
+            </div>
+
+            <details class="quick-wrap" data-tutorial-id="quick-actions">
+              <summary>Haiku quick prompts</summary>
+              <div id="quickActions" class="quick-actions">
+                <button class="secondary" data-quick="How do I check syllables for a 5-7-5 haiku?" type="button">syllable help</button>
+                <button
+                  class="secondary"
+                  data-quick="Please critique this draft and suggest one revision: Spring sunshine glowing / birds are singing in the trees / nature is so nice"
+                  type="button"
+                >
+                  critique sample
+                </button>
+                <button
+                  class="secondary"
+                  data-quick="My attempt: Cold moon on wet steps / footsteps echo through the night / morning birds begin. What should I improve?"
+                  type="button"
+                >
+                  draft feedback
+                </button>
+              </div>
+            </details>
+
+            <div id="error" class="error"></div>
+            <div class="hint">Enter sends. Shift+Enter adds a newline. Drafts persist by thread.</div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="debug-column" id="debugColumn">
+        <section class="panel" data-tutorial-id="runtime-panel">
+          <div class="panel-head">Runtime</div>
+          <div id="meta" class="panel-body runtime-grid"></div>
+        </section>
+
+        <section class="panel" data-tutorial-id="status-panel">
+          <div class="panel-head">Status Memory</div>
+          <div class="panel-body">
+            <pre id="statusView">{}</pre>
+            <button id="refreshStatusBtn" class="secondary" type="button" style="margin-top: 10px">Refresh status</button>
+          </div>
+        </section>
+
+        <section class="panel" data-tutorial-id="advanced-panel">
+          <div class="panel-head">Advanced</div>
+          <div class="panel-body controls-grid">
+            <div id="activeUser" class="session-note" data-tutorial-id="user-session">Active: guest</div>
+            <div>
+              <label for="threadId">Thread ID</label>
+              <input id="threadId" />
+            </div>
+            <div>
+              <label for="endpoint">Endpoint</label>
+              <select id="endpoint">
+                <option value="/chat/stream">/chat/stream (graph + reasoning)</option>
+                <option value="/chat">/chat (simple)</option>
+              </select>
+            </div>
+            <div>
+              <label for="reasoningDisplay">Reasoning display</label>
+              <select id="reasoningDisplay">
+                <option value="both">Both (generated + status)</option>
+                <option value="both_with_deterministic">Both + deterministic explanations</option>
+                <option value="generated">Generated reasoning only</option>
+                <option value="deterministic">Deterministic explanations only</option>
+                <option value="status">Status messages only</option>
+                <option value="off">Hide reasoning</option>
+              </select>
+            </div>
+            <div>
+              <label for="reasoningMinMs">Reasoning min display (ms)</label>
+              <input id="reasoningMinMs" type="number" min="100" max="2000" step="50" value="300" />
+            </div>
+            <div class="toggle-row">
+              <button id="themeToggle" class="secondary" type="button">Theme: Auto</button>
+              <button id="densityToggle" class="secondary" type="button">Density: Comfortable</button>
+              <button id="liveToggle" class="secondary" type="button">Live: On</button>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <div id="tutorialLayer" class="tutorial-layer" hidden>
+      <div id="tutorialSpotlight" class="tutorial-spotlight" hidden></div>
+      <div id="tutorialCard" class="tutorial-card">
+        <div id="tutorialProgress" class="tutorial-progress"></div>
+        <div id="tutorialTitle" class="tutorial-title"></div>
+        <div id="tutorialBody" class="tutorial-body"></div>
+        <div class="tutorial-actions">
+          <button class="secondary" type="button" id="tutorialClose">Close</button>
+          <button class="secondary" type="button" id="tutorialDismiss">Don't show again</button>
+          <span class="tutorial-spacer"></span>
+          <button class="secondary" type="button" id="tutorialBack">Back</button>
+          <button class="primary" type="button" id="tutorialNext">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const STORAGE_KEY_TUTORIAL = "haiku_example_tutorial_dismissed_v1";
+      const STORAGE_KEY_THEME = "haiku_example_theme";
+      const STORAGE_KEY_DENSITY = "haiku_example_density";
+      const STORAGE_KEY_THREAD = "haiku_example_last_thread";
+      const STORAGE_KEY_LIVE = "haiku_example_live_announcements";
+      const STORAGE_KEY_DEBUG_OPEN = "haiku_example_debug_open";
+      const STORAGE_KEY_REASONING_DISPLAY = "haiku_example_reasoning_display";
+      const STORAGE_KEY_REASONING_MIN_MS = "haiku_example_reasoning_min_ms";
+      const STORAGE_KEY_AUTH_MODE = "haiku_example_auth_mode";
+      const STORAGE_KEY_AUTH_USER = "haiku_example_auth_user";
+      const STORAGE_KEY_GUEST_CODE = "haiku_example_guest_code";
+      const DRAFT_PREFIX = "haiku_example_draft_";
+      const DEFAULT_APP_TITLE = "Haiku Expert Chat";
+      const DEFAULT_ASSISTANT_NAME = "Haiku Expert";
+      const UI_BUILD = "2026-02-08-user-session-2";
+      const THINKING_HEARTBEAT_MESSAGES = [
+        "Thinking...",
+        "Reviewing your message...",
+        "Preparing focused haiku feedback...",
+      ];
+      const THINKING_LIVE_BOTTOM_GUARD_PX = 20;
+
+      const appTitle = document.getElementById("appTitle");
+      const layout = document.getElementById("layout");
+      const meta = document.getElementById("meta");
+      const threadId = document.getElementById("threadId");
+      const endpoint = document.getElementById("endpoint");
+      const message = document.getElementById("message");
+      const sendBtn = document.getElementById("sendBtn");
+      const stopBtn = document.getElementById("stopBtn");
+      const regenBtn = document.getElementById("regenBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const refreshStatusBtn = document.getElementById("refreshStatusBtn");
+      const jumpBottomBtn = document.getElementById("jumpBottomBtn");
+      const newChatBtn = document.getElementById("newChatBtn");
+      const debugToggle = document.getElementById("debugToggle");
+      const reasoningDisplaySelect = document.getElementById("reasoningDisplay");
+      const reasoningMinMsInput = document.getElementById("reasoningMinMs");
+      const log = document.getElementById("log");
+      const statusView = document.getElementById("statusView");
+      const errorView = document.getElementById("error");
+      const tutorialOpen = document.getElementById("tutorialOpen");
+      const themeToggle = document.getElementById("themeToggle");
+      const densityToggle = document.getElementById("densityToggle");
+      const liveToggle = document.getElementById("liveToggle");
+      const authUser = document.getElementById("authUser");
+      const authPass = document.getElementById("authPass");
+      const loginBtn = document.getElementById("loginBtn");
+      const registerBtn = document.getElementById("registerBtn");
+      const guestCode = document.getElementById("guestCode");
+      const guestBtn = document.getElementById("guestBtn");
+      const navAuthState = document.getElementById("navAuthState");
+      const activeUser = document.getElementById("activeUser");
+
+      const tutorialLayer = document.getElementById("tutorialLayer");
+      const tutorialSpotlight = document.getElementById("tutorialSpotlight");
+      const tutorialCard = document.getElementById("tutorialCard");
+      const tutorialProgress = document.getElementById("tutorialProgress");
+      const tutorialTitle = document.getElementById("tutorialTitle");
+      const tutorialBody = document.getElementById("tutorialBody");
+      const tutorialClose = document.getElementById("tutorialClose");
+      const tutorialDismiss = document.getElementById("tutorialDismiss");
+      const tutorialBack = document.getElementById("tutorialBack");
+      const tutorialNext = document.getElementById("tutorialNext");
+
+      const state = {
+        isStreaming: false,
+        abortController: null,
+        unreadCount: 0,
+        stickToBottom: true,
+        lastUserMessage: "",
+        transcript: [],
+        nodesById: new Map(),
+        tutorialEnabled: false,
+        tutorialSteps: [],
+        tutorialIndex: 0,
+        liveAnnouncements: true,
+        debugOpen: false,
+        reasoningDisplay: "both",
+        reasoningMinMs: 300,
+        appTitle: DEFAULT_APP_TITLE,
+        assistantName: DEFAULT_ASSISTANT_NAME,
+        authMode: "guest",
+        activeUserId: "",
+        activeDisplayName: "Guest",
+        pendingAssistantId: null,
+        pendingTurn: null,
+      };
+
+      function nowLabel(ts = Date.now()) {
+        return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      }
+
+      function escapeHtml(input) {
+        return String(input ?? "").replace(/[<>&]/g, (ch) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[ch]));
+      }
+
+      function renderMarkdownLite(input) {
+        const source = String(input ?? "").replace(/\r\n/g, "\n");
+
+        const renderInline = (raw) => {
+          let out = escapeHtml(raw);
+          out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+          out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+          out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+          out = out.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+          return out;
+        };
+
+        const lines = source.split("\n");
+        const html = [];
+        let i = 0;
+
+        while (i < lines.length) {
+          const line = lines[i];
+
+          if (!line.trim()) {
+            i += 1;
+            continue;
+          }
+
+          if (line.startsWith("```")) {
+            const codeLines = [];
+            i += 1;
+            while (i < lines.length && !lines[i].startsWith("```")) {
+              codeLines.push(lines[i]);
+              i += 1;
+            }
+            if (i < lines.length && lines[i].startsWith("```")) i += 1;
+            html.push(`<pre class="md-code"><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+            continue;
+          }
+
+          const heading = line.match(/^(#{1,3})\s+(.+)$/);
+          if (heading) {
+            const lvl = Math.min(4, heading[1].length + 1);
+            html.push(`<h${lvl}>${renderInline(heading[2])}</h${lvl}>`);
+            i += 1;
+            continue;
+          }
+
+          if (/^[-*]\s+/.test(line)) {
+            const items = [];
+            while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
+              items.push(lines[i].replace(/^[-*]\s+/, ""));
+              i += 1;
+            }
+            html.push(`<ul>${items.map((x) => `<li>${renderInline(x)}</li>`).join("")}</ul>`);
+            continue;
+          }
+
+          if (/^\d+\.\s+/.test(line)) {
+            const items = [];
+            while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
+              items.push(lines[i].replace(/^\d+\.\s+/, ""));
+              i += 1;
+            }
+            html.push(`<ol>${items.map((x) => `<li>${renderInline(x)}</li>`).join("")}</ol>`);
+            continue;
+          }
+
+          const para = [line];
+          i += 1;
+          while (
+            i < lines.length &&
+            lines[i].trim() &&
+            !lines[i].startsWith("```") &&
+            !/^(#{1,3})\s+/.test(lines[i]) &&
+            !/^[-*]\s+/.test(lines[i]) &&
+            !/^\d+\.\s+/.test(lines[i])
+          ) {
+            para.push(lines[i]);
+            i += 1;
+          }
+          html.push(`<p>${renderInline(para.join("\n")).replace(/\n/g, "<br>")}</p>`);
+        }
+
+        return html.join("") || "<p></p>";
+      }
+
+      function nearBottom(el, threshold = 56) {
+        return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+      }
+
+      function messageId() {
+        return `m-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+      }
+
+      function formatRoleLabel(role, node) {
+        if (role === "user") return "you";
+        if (role === "assistant") return state.assistantName;
+        if (role === "reasoning") return node ? `node:${node}` : "reasoning";
+        return role;
+      }
+
+      function setBranding({ title, assistantName } = {}) {
+        const nextTitle = String(title || "").trim() || DEFAULT_APP_TITLE;
+        const nextAssistant = String(assistantName || "").trim() || DEFAULT_ASSISTANT_NAME;
+        state.appTitle = nextTitle;
+        state.assistantName = nextAssistant;
+        if (appTitle) appTitle.textContent = nextTitle;
+        document.title = nextTitle;
+      }
+
+      function updateJumpButton() {
+        if (state.stickToBottom || state.unreadCount === 0) {
+          jumpBottomBtn.hidden = true;
+          return;
+        }
+        jumpBottomBtn.hidden = false;
+        jumpBottomBtn.textContent = state.unreadCount === 1 ? "1 new message - jump" : `${state.unreadCount} new messages - jump`;
+      }
+
+      function scrollTranscriptToBottom(force = false) {
+        if (force || state.stickToBottom) {
+          log.scrollTop = log.scrollHeight;
+          state.unreadCount = 0;
+          updateJumpButton();
+        }
+      }
+
+      function createArticle(msg, grouped) {
+        const article = document.createElement("article");
+        article.className = `${msg.role === "reasoning" ? "reasoning-item" : `msg ${msg.role}`}${grouped ? " grouped" : ""}`;
+        article.tabIndex = 0;
+
+        const label = `${formatRoleLabel(msg.role, msg.node)}, ${nowLabel(msg.time)}, ${String(msg.text).slice(0, 80)}`;
+        article.setAttribute("aria-label", label);
+
+        const delivery = msg.role === "user" && msg.status ? `<span class="delivery">${escapeHtml(msg.status)}</span>` : "";
+
+        article.innerHTML = `
+          <div class="who">
+            <strong>${escapeHtml(formatRoleLabel(msg.role, msg.node))}</strong>
+            <span>${escapeHtml(nowLabel(msg.time))}</span>
+            ${delivery}
+          </div>
+          <div class="message-body" data-message-body></div>
+        `;
+
+        const body = article.querySelector("[data-message-body]");
+        if (body) {
+          renderMessageBody(body, msg.role, msg.text);
+        }
+
+        return article;
+      }
+
+      function renderMessageBody(bodyEl, role, text) {
+        const raw = String(text ?? "");
+        bodyEl.setAttribute("data-raw-text", raw);
+        if (role === "assistant" || role === "reasoning") {
+          bodyEl.classList.remove("plain");
+          bodyEl.classList.add("md");
+          bodyEl.innerHTML = renderMarkdownLite(raw);
+          return;
+        }
+        bodyEl.classList.remove("md");
+        bodyEl.classList.add("plain");
+        bodyEl.textContent = raw;
+      }
+
+      function appendTranscriptMessage(msg) {
+        const prev = state.transcript.length ? state.transcript[state.transcript.length - 1] : null;
+        const grouped = Boolean(
+          prev && prev.role === msg.role && (!msg.node || prev.node === msg.node) && msg.time - prev.time < 120000
+        );
+
+        state.transcript.push(msg);
+        const node = createArticle(msg, grouped);
+        log.appendChild(node);
+        state.nodesById.set(msg.id, node);
+
+        if (!state.stickToBottom) {
+          state.unreadCount += 1;
+          updateJumpButton();
+        } else {
+          scrollTranscriptToBottom(true);
+        }
+      }
+
+      function startPendingTurnPlaceholder() {
+        const id = messageId();
+        const time = Date.now();
+        state.transcript.push({ id, role: "assistant", text: "", time });
+
+        const article = document.createElement("article");
+        article.className = "msg assistant thinking";
+        article.tabIndex = 0;
+        article.setAttribute("aria-label", `${state.assistantName} thinking, ${nowLabel(time)}`);
+        article.innerHTML = `
+          <div class="who">
+            <strong>${escapeHtml(state.assistantName)}</strong>
+            <span>${escapeHtml(nowLabel(time))}</span>
+          </div>
+          <div class="thinking-row" data-thinking-row>
+            <span class="spinner" data-thinking-spinner aria-hidden="true"></span>
+            <div class="node-chip" data-thinking-live>
+              <div class="message-body md thinking-live-body" data-thinking-live-body>Thinking...</div>
+              <div class="thinking-live-fade" aria-hidden="true"></div>
+              <div class="thinking-live-progress" data-thinking-live-progress aria-hidden="true">
+                <span data-thinking-live-progress-fill></span>
+              </div>
+            </div>
+          </div>
+          <details class="turn-reasoning" data-turn-reasoning hidden>
+            <summary data-turn-reasoning-summary>Reasoning (0)</summary>
+            <div class="turn-reasoning-list" data-turn-reasoning-list></div>
+          </details>
+          <div class="message-body md" data-assistant-body hidden></div>
+        `;
+
+        log.appendChild(article);
+        state.nodesById.set(id, article);
+        state.pendingTurn = {
+          id,
+          reasoningCount: 0,
+          history: [],
+          currentReasoning: null,
+          lastLiveRenderedAt: 0,
+          lastLiveSignature: "",
+          queuedLiveReasoning: null,
+          liveFlushTimer: null,
+          liveScrollTimer: null,
+          liveScrollPx: 0,
+          liveLastScrollHeight: 0,
+          liveSummaryIndex: -1,
+          livePreferredSummaryIndex: -1,
+          heartbeatTimer: null,
+          heartbeatStep: 0,
+          hasGeneratedReasoning: false,
+          done: false,
+        };
+        startPendingTurnHeartbeat(state.pendingTurn);
+        state.pendingAssistantId = id;
+
+        if (!state.stickToBottom) {
+          state.unreadCount += 1;
+          updateJumpButton();
+        } else {
+          scrollTranscriptToBottom(true);
+        }
+      }
+
+      function formatThinkingLive(reasoning) {
+        if (!reasoning) return "Thinking...";
+        const msg = String(reasoning.text || "").replace(/\s+/g, " ").trim();
+        if (reasoning.kind === "generated") {
+          return msg || "Thinking...";
+        }
+        if (reasoning.kind === "deterministic") {
+          return msg || `logic · node:${String(reasoning.node || "step")}`;
+        }
+        return msg || `status · node:${String(reasoning.node || "step")}`;
+      }
+
+      function normalizeReasoningKind(kind) {
+        const k = String(kind || "").trim().toLowerCase();
+        if (k === "generated" || k === "status" || k === "deterministic") return k;
+        return "status";
+      }
+
+      function modeAllowsReasoningKind(kind) {
+        const safeKind = normalizeReasoningKind(kind);
+        if (state.reasoningDisplay === "off") return false;
+        if (state.reasoningDisplay === "both") return safeKind === "generated" || safeKind === "status";
+        if (state.reasoningDisplay === "both_with_deterministic") return true;
+        if (state.reasoningDisplay === "generated") return safeKind === "generated";
+        if (state.reasoningDisplay === "deterministic") return safeKind === "deterministic";
+        if (state.reasoningDisplay === "status") return safeKind === "status";
+        return safeKind === "generated" || safeKind === "status";
+      }
+
+      function reasoningSignature(reasoning) {
+        if (!reasoning) return "";
+        const summaryIndex = Number.isFinite(Number(reasoning.summaryIndex)) ? String(Number(reasoning.summaryIndex)) : "";
+        return `${String(reasoning.kind || "")}|${String(reasoning.node || "")}|${summaryIndex}|${String(reasoning.text || "").trim()}`;
+      }
+
+      function clearPendingTurnLiveTimer(turn) {
+        if (!turn || !turn.liveFlushTimer) return;
+        clearTimeout(turn.liveFlushTimer);
+        turn.liveFlushTimer = null;
+      }
+
+      function clearPendingTurnLiveScroller(turn) {
+        if (!turn || !turn.liveScrollTimer) return;
+        clearInterval(turn.liveScrollTimer);
+        turn.liveScrollTimer = null;
+      }
+
+      function clearPendingTurnHeartbeat(turn) {
+        if (!turn || !turn.heartbeatTimer) return;
+        clearInterval(turn.heartbeatTimer);
+        turn.heartbeatTimer = null;
+      }
+
+      function startPendingTurnHeartbeat(turn) {
+        if (!turn) return;
+        clearPendingTurnHeartbeat(turn);
+        const tick = () => {
+          const active = state.pendingTurn;
+          if (!active || active.id !== turn.id || turn.done || turn.hasGeneratedReasoning) {
+            clearPendingTurnHeartbeat(turn);
+            return;
+          }
+
+          const idx = Number(turn.heartbeatStep || 0) % THINKING_HEARTBEAT_MESSAGES.length;
+          const dots = ".".repeat((Number(turn.heartbeatStep || 0) % 3) + 1);
+          const base = String(THINKING_HEARTBEAT_MESSAGES[idx] || "Thinking...");
+          const top = base.replace(/\.+$/, "");
+          const msg = `${top}${dots} Working on your response now.`;
+          applyPendingTurnLiveReasoning(
+            turn,
+            { node: "waiting", text: msg, kind: "status" },
+            false
+          );
+          turn.heartbeatStep = Number(turn.heartbeatStep || 0) + 1;
+        };
+        tick();
+        turn.heartbeatTimer = setInterval(tick, 950);
+      }
+
+      function markPendingTurnHasGeneratedReasoning(turn) {
+        if (!turn || turn.hasGeneratedReasoning) return;
+        turn.hasGeneratedReasoning = true;
+        clearPendingTurnHeartbeat(turn);
+      }
+
+      function setThinkingLiveProgress(live, progress, active) {
+        if (!live) return;
+        const p = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
+        live.style.setProperty("--thinking-scroll-progress", String(p.toFixed(3)));
+        live.setAttribute("data-scrolling", active && p < 0.999 ? "1" : "0");
+      }
+
+      function syncThinkingLiveViewport(turn, liveBody, live, resetViewport = false) {
+        if (!turn || !liveBody || !live) return;
+        const maxScroll = Math.max(0, liveBody.scrollHeight - liveBody.clientHeight);
+        if (maxScroll <= 0) {
+          turn.liveScrollPx = 0;
+          liveBody.scrollTop = 0;
+          setThinkingLiveProgress(live, 0, false);
+          return;
+        }
+        if (resetViewport) {
+          turn.liveScrollPx = 0;
+        }
+        const px = Number.isFinite(turn.liveScrollPx) ? Math.max(0, Math.min(maxScroll, turn.liveScrollPx)) : 0;
+        turn.liveScrollPx = px;
+        liveBody.scrollTop = px;
+        setThinkingLiveProgress(live, px / maxScroll, px < maxScroll - 0.5);
+      }
+
+      function scrollThinkingLiveOnOverflow(turn, liveBody, live, resetViewport = false) {
+        if (!turn || !liveBody || !live) return;
+        const fade = live.querySelector(".thinking-live-fade");
+        const fadeHeight = fade ? Math.max(0, Math.ceil(fade.getBoundingClientRect().height || 0)) : 0;
+        const guardBottom = Math.max(6, Math.max(THINKING_LIVE_BOTTOM_GUARD_PX, fadeHeight + 4) - 14);
+        liveBody.style.setProperty("--thinking-live-scroll-buffer", `${guardBottom}px`);
+        const currentHeight = Math.max(0, Number(liveBody.scrollHeight || 0));
+        const maxScroll = Math.max(0, liveBody.scrollHeight - liveBody.clientHeight);
+        if (maxScroll <= 0) {
+          turn.liveScrollPx = 0;
+          turn.liveLastScrollHeight = currentHeight;
+          liveBody.scrollTop = 0;
+          setThinkingLiveProgress(live, 0, false);
+          return;
+        }
+        const current = Number.isFinite(turn.liveScrollPx) ? Math.max(0, Math.min(maxScroll, Number(turn.liveScrollPx))) : 0;
+        if (resetViewport) {
+          turn.liveScrollPx = 0;
+          turn.liveLastScrollHeight = currentHeight;
+          liveBody.scrollTop = 0;
+          setThinkingLiveProgress(live, 0, true);
+          return;
+        }
+        const prevHeightRaw = Number(turn.liveLastScrollHeight);
+        const prevHeight = Number.isFinite(prevHeightRaw) ? Math.max(0, prevHeightRaw) : currentHeight;
+        const grew = Math.max(0, currentHeight - prevHeight);
+        let next = current;
+        if (grew > 0.2) {
+          next = Math.min(maxScroll, current + grew);
+        } else if (current <= 0.5 && maxScroll > 0.5) {
+          // Fallback for large single-chunk renders: still make movement visible.
+          next = Math.min(maxScroll, 12);
+        }
+        turn.liveScrollPx = next;
+        turn.liveLastScrollHeight = currentHeight;
+        liveBody.scrollTop = turn.liveScrollPx;
+        setThinkingLiveProgress(live, turn.liveScrollPx / maxScroll, turn.liveScrollPx < maxScroll - 0.5);
+      }
+
+      function applyPendingTurnLiveReasoning(turn, reasoning, animate = true) {
+        if (!turn) return;
+        const safeKind = String(reasoning?.kind || "");
+        const nextSummaryIndexRaw = Number(reasoning?.summaryIndex);
+        const nextSummaryIndex = Number.isFinite(nextSummaryIndexRaw) ? Math.max(0, Math.trunc(nextSummaryIndexRaw)) : null;
+        let resetViewport = false;
+        if (safeKind === "generated" && nextSummaryIndex !== null && nextSummaryIndex !== Number(turn.liveSummaryIndex)) {
+          // Reset viewport when the model switches to a new reasoning summary block.
+          turn.liveScrollPx = 0;
+          resetViewport = true;
+        }
+        if (nextSummaryIndex !== null) {
+          turn.liveSummaryIndex = nextSummaryIndex;
+        }
+        turn.currentReasoning = reasoning;
+        turn.lastLiveRenderedAt = Date.now();
+        turn.lastLiveSignature = reasoningSignature(reasoning);
+        renderThinkingLive(turn, animate, { resetViewport });
+      }
+
+      function queuePendingTurnLiveReasoning(turn, reasoning) {
+        if (!turn) return;
+        turn.queuedLiveReasoning = reasoning;
+        if (turn.liveFlushTimer) return;
+
+        const elapsed = Date.now() - Number(turn.lastLiveRenderedAt || 0);
+        const wait = Math.max(0, Number(state.reasoningMinMs || 300) - elapsed);
+        turn.liveFlushTimer = setTimeout(() => {
+          const active = state.pendingTurn;
+          if (!active || active.id !== turn.id || turn.done) {
+            clearPendingTurnLiveTimer(turn);
+            return;
+          }
+          turn.liveFlushTimer = null;
+          const queued = turn.queuedLiveReasoning;
+          turn.queuedLiveReasoning = null;
+          if (!queued) return;
+          if (reasoningSignature(queued) === turn.lastLiveSignature) return;
+          applyPendingTurnLiveReasoning(turn, queued, true);
+        }, wait);
+      }
+
+      function applyReasoningHistoryFilter(node) {
+        if (!node) return;
+        const details = node.querySelector("[data-turn-reasoning]");
+        const summary = node.querySelector("[data-turn-reasoning-summary]");
+        const list = node.querySelector("[data-turn-reasoning-list]");
+        if (!details || !summary || !list) return;
+
+        let visibleCount = 0;
+        const items = list.querySelectorAll(".turn-reasoning-item");
+        items.forEach((item) => {
+          const kind = String(item.getAttribute("data-kind") || "status");
+          const visible = modeAllowsReasoningKind(kind);
+          item.hidden = !visible;
+          if (visible) visibleCount += 1;
+        });
+
+        summary.textContent = `Reasoning (${visibleCount})`;
+        details.hidden = state.reasoningDisplay === "off" || visibleCount === 0;
+      }
+
+      function applyReasoningFilterToAllTurns() {
+        for (const node of state.nodesById.values()) {
+          if (!node || typeof node.querySelector !== "function") continue;
+          if (!node.querySelector("[data-turn-reasoning]")) continue;
+          applyReasoningHistoryFilter(node);
+        }
+      }
+
+      function renderThinkingLive(turn, animate = true, opts = {}) {
+        const node = state.nodesById.get(turn.id);
+        if (!node) return;
+        const resetViewport = Boolean(opts && opts.resetViewport);
+        const live = node.querySelector("[data-thinking-live]");
+        if (!live) return;
+        const liveBody = live.querySelector("[data-thinking-live-body]");
+        const liveText = formatThinkingLive(turn.currentReasoning);
+        if (liveBody) {
+          renderMessageBody(liveBody, "reasoning", liveText);
+          liveBody.classList.add("thinking-live-body");
+          scrollThinkingLiveOnOverflow(turn, liveBody, live, resetViewport);
+        } else {
+          live.textContent = liveText;
+        }
+        if (turn.currentReasoning && turn.currentReasoning.kind) {
+          live.setAttribute("data-kind", turn.currentReasoning.kind);
+        } else {
+          live.removeAttribute("data-kind");
+        }
+        if (!animate || !turn.currentReasoning) return;
+        live.classList.remove("flash");
+        void live.offsetWidth;
+        live.classList.add("flash");
+        setTimeout(() => live.classList.remove("flash"), 2000);
+      }
+
+      function latestVisibleReasoning(turn) {
+        if (!turn || state.reasoningDisplay === "off") return null;
+        const items = Array.isArray(turn.history) ? turn.history : [];
+        if (state.reasoningDisplay === "generated") {
+          for (let i = items.length - 1; i >= 0; i -= 1) {
+            if (items[i] && items[i].kind === "generated") return items[i];
+          }
+          return null;
+        }
+        if (state.reasoningDisplay === "deterministic") {
+          for (let i = items.length - 1; i >= 0; i -= 1) {
+            if (items[i] && items[i].kind === "deterministic") return items[i];
+          }
+          return null;
+        }
+        if (state.reasoningDisplay === "status") {
+          for (let i = items.length - 1; i >= 0; i -= 1) {
+            if (items[i] && items[i].kind === "status") return items[i];
+          }
+          return null;
+        }
+        for (let i = items.length - 1; i >= 0; i -= 1) {
+          if (items[i] && items[i].kind === "generated") return items[i];
+        }
+        if (state.reasoningDisplay === "both_with_deterministic") {
+          for (let i = items.length - 1; i >= 0; i -= 1) {
+            if (items[i] && items[i].kind === "deterministic") return items[i];
+          }
+        }
+        for (let i = items.length - 1; i >= 0; i -= 1) {
+          if (items[i] && items[i].kind === "status") return items[i];
+        }
+        return null;
+      }
+
+      function syncPendingTurnLiveReasoning(turn, animate = false) {
+        if (!turn) return;
+        clearPendingTurnLiveTimer(turn);
+        turn.queuedLiveReasoning = null;
+        const prevSig = reasoningSignature(turn.currentReasoning);
+        const next = latestVisibleReasoning(turn);
+        const nextSig = reasoningSignature(next);
+        if (!next) {
+          turn.currentReasoning = null;
+          turn.lastLiveSignature = "";
+          renderThinkingLive(turn, false, { resetViewport: true });
+          return;
+        }
+        applyPendingTurnLiveReasoning(turn, next, Boolean(animate && nextSig !== prevSig));
+      }
+
+      function setPendingTurnLiveReasoning(nodeName, text, kind = "generated", animate = true, opts = {}) {
+        const turn = state.pendingTurn;
+        if (!turn) return;
+        const safeKind = normalizeReasoningKind(kind);
+        if ((safeKind === "generated" || safeKind === "deterministic") && String(text || "").trim()) {
+          markPendingTurnHasGeneratedReasoning(turn);
+        }
+        if (!modeAllowsReasoningKind(safeKind)) return;
+        const summaryIndexRaw = Number(opts?.summaryIndex);
+        const summaryIndex = Number.isFinite(summaryIndexRaw) ? Math.max(0, Math.trunc(summaryIndexRaw)) : null;
+        if (safeKind === "generated" && summaryIndex !== null) {
+          const preferredRaw = Number(turn.livePreferredSummaryIndex);
+          const preferred = Number.isFinite(preferredRaw) ? preferredRaw : -1;
+          if (summaryIndex < preferred) {
+            return;
+          }
+          if (summaryIndex > preferred) {
+            turn.livePreferredSummaryIndex = summaryIndex;
+          }
+        }
+        const nextReasoning = {
+          node: String(nodeName || ""),
+          text: String(text || ""),
+          kind: safeKind,
+        };
+        if (summaryIndex !== null) {
+          nextReasoning.summaryIndex = summaryIndex;
+        }
+        const nextSig = reasoningSignature(nextReasoning);
+        if (!nextSig || nextSig === turn.lastLiveSignature) return;
+
+        const elapsed = Date.now() - Number(turn.lastLiveRenderedAt || 0);
+        if (elapsed >= Number(state.reasoningMinMs || 300)) {
+          clearPendingTurnLiveTimer(turn);
+          turn.queuedLiveReasoning = null;
+          applyPendingTurnLiveReasoning(turn, nextReasoning, animate);
+          return;
+        }
+
+        queuePendingTurnLiveReasoning(turn, nextReasoning);
+      }
+
+      function appendReasoningToPendingTurn(nodeName, text, kind = "status", opts = {}) {
+        const turn = state.pendingTurn;
+        if (!turn) return;
+        const safeKind = normalizeReasoningKind(kind);
+        if ((safeKind === "generated" || safeKind === "deterministic") && String(text || "").trim()) {
+          markPendingTurnHasGeneratedReasoning(turn);
+        }
+        const node = state.nodesById.get(turn.id);
+        if (!node) return;
+
+        const details = node.querySelector("[data-turn-reasoning]");
+        const summary = node.querySelector("[data-turn-reasoning-summary]");
+        const list = node.querySelector("[data-turn-reasoning-list]");
+        if (!details || !summary || !list) return;
+
+        const safeText = String(text || "");
+        const safeNode = String(nodeName || "");
+        const summaryIndexRaw = Number(opts?.summaryIndex);
+        const safeSummaryIndex = Number.isFinite(summaryIndexRaw) ? Math.max(0, Math.trunc(summaryIndexRaw)) : null;
+        const last = turn.history.length ? turn.history[turn.history.length - 1] : null;
+        const lastSummaryIndexRaw = last ? Number(last.summaryIndex) : Number.NaN;
+        const lastSummaryIndex = Number.isFinite(lastSummaryIndexRaw) ? Math.max(0, Math.trunc(lastSummaryIndexRaw)) : null;
+        if (
+          last &&
+          String(last.kind || "") === safeKind &&
+          String(last.node || "") === safeNode &&
+          String(last.text || "").trim() === safeText.trim() &&
+          lastSummaryIndex === safeSummaryIndex
+        ) {
+          syncPendingTurnLiveReasoning(turn, false);
+          return;
+        }
+
+        const kindLabel = safeKind === "generated" ? "reasoning" : safeKind === "deterministic" ? "logic" : "status";
+        const item = document.createElement("div");
+        item.className = "turn-reasoning-item";
+        item.setAttribute("data-kind", safeKind);
+        item.innerHTML = `<div class="who"><strong>${escapeHtml(kindLabel)}</strong><span>${escapeHtml(`${nowLabel()} · node:${safeNode}`)}</span></div><div class="message-body md" data-reasoning-body></div>`;
+        const reasoningBody = item.querySelector("[data-reasoning-body]");
+        if (reasoningBody) {
+          renderMessageBody(reasoningBody, "reasoning", safeText);
+        }
+        list.appendChild(item);
+
+        turn.reasoningCount += 1;
+        applyReasoningHistoryFilter(node);
+        if (modeAllowsReasoningKind(safeKind)) {
+          list.scrollTop = list.scrollHeight;
+        }
+
+        turn.history.push({ node: safeNode, text: safeText, kind: safeKind, summaryIndex: safeSummaryIndex });
+        syncPendingTurnLiveReasoning(turn, true);
+      }
+
+      function finalizePendingTurn(assistantText) {
+        const turn = state.pendingTurn;
+        if (!turn) return;
+        clearPendingTurnLiveTimer(turn);
+        clearPendingTurnLiveScroller(turn);
+        clearPendingTurnHeartbeat(turn);
+        turn.queuedLiveReasoning = null;
+        turn.livePreferredSummaryIndex = -1;
+        const node = state.nodesById.get(turn.id);
+        if (!node) {
+          return;
+        }
+
+        hideThinkingUi(node);
+        const assistantBody = node.querySelector("[data-assistant-body]");
+        if (assistantBody) {
+          assistantBody.hidden = false;
+          renderMessageBody(assistantBody, "assistant", assistantText);
+        }
+        node.classList.remove("thinking");
+        turn.done = true;
+        state.pendingTurn = null;
+      }
+
+      function failPendingTurn(messageText) {
+        const turn = state.pendingTurn;
+        if (!turn) return;
+        const safe = String(messageText || "Request failed.");
+        finalizePendingTurn(safe);
+        state.pendingAssistantId = null;
+      }
+
+      function updateMessageStatus(id, status) {
+        const node = state.nodesById.get(id);
+        if (!node) return;
+        const delivery = node.querySelector(".delivery");
+        if (delivery) delivery.textContent = status;
+      }
+
+      function hideThinkingUi(node) {
+        if (!node) return;
+        const thinkingRow = node.querySelector("[data-thinking-row]");
+        const thinkingSpinner = node.querySelector("[data-thinking-spinner]");
+        if (thinkingSpinner) {
+          thinkingSpinner.hidden = true;
+          thinkingSpinner.style.display = "none";
+        }
+        if (thinkingRow) {
+          thinkingRow.classList.add("done");
+          thinkingRow.remove();
+        }
+      }
+
+      function updateMessageText(id, text) {
+        const node = state.nodesById.get(id);
+        if (!node) return;
+        const body = node.querySelector("[data-assistant-body]") || node.querySelector("[data-message-body]");
+        if (!body) return;
+        renderMessageBody(body, "assistant", text);
+      }
+
+      function setStatusJson(statusObj) {
+        statusView.textContent = JSON.stringify(statusObj || {}, null, 2);
+      }
+
+      function setStreaming(isStreaming) {
+        state.isStreaming = isStreaming;
+        stopBtn.disabled = !isStreaming;
+        updateSendEnabled();
+      }
+
+      function updateSendEnabled() {
+        const hasText = Boolean(message.value.trim());
+        sendBtn.disabled = state.isStreaming || !hasText;
+        regenBtn.disabled = state.isStreaming || !state.lastUserMessage;
+      }
+
+      function draftKey(tid) {
+        return `${DRAFT_PREFIX}${tid}`;
+      }
+
+      function persistDraft() {
+        const tid = threadId.value.trim();
+        if (!tid) return;
+        localStorage.setItem(draftKey(tid), message.value);
+      }
+
+      function loadDraftForThread(tid) {
+        const draft = tid ? localStorage.getItem(draftKey(tid)) : "";
+        message.value = draft || "";
+        autoResizeComposer();
+        updateSendEnabled();
+      }
+
+      function clearDraftForThread(tid) {
+        if (!tid) return;
+        localStorage.removeItem(draftKey(tid));
+      }
+
+      function autoResizeComposer() {
+        message.style.height = "auto";
+        const h = Math.min(message.scrollHeight, 220);
+        message.style.height = `${Math.max(56, h)}px`;
+      }
+
+      function stripStatusCard(text, statusCard) {
+        const full = String(text || "");
+        const card = String(statusCard || "").trim();
+        if (!card) return full;
+
+        const trimmed = full.trimEnd();
+        if (trimmed.endsWith(card)) {
+          return trimmed.slice(0, trimmed.length - card.length).trimEnd();
+        }
+        return full;
+      }
+
+      function setDebugOpen(open) {
+        state.debugOpen = open;
+        layout.classList.toggle("debug-closed", !open);
+        debugToggle.textContent = open ? "Close tools" : "Tools";
+        localStorage.setItem(STORAGE_KEY_DEBUG_OPEN, String(open));
+      }
+
+      function setReasoningDisplay(mode) {
+        const normalized = ["both", "both_with_deterministic", "generated", "deterministic", "status", "off"].includes(
+          mode
+        )
+          ? mode
+          : "both";
+        state.reasoningDisplay = normalized;
+        reasoningDisplaySelect.value = normalized;
+        localStorage.setItem(STORAGE_KEY_REASONING_DISPLAY, normalized);
+        applyReasoningFilterToAllTurns();
+        if (state.pendingTurn) {
+          syncPendingTurnLiveReasoning(state.pendingTurn, false);
+        }
+      }
+
+      function setReasoningMinMs(value) {
+        const parsed = Number.parseInt(String(value), 10);
+        const normalized = Number.isFinite(parsed) ? Math.min(2000, Math.max(100, parsed)) : 300;
+        state.reasoningMinMs = normalized;
+        if (reasoningMinMsInput) reasoningMinMsInput.value = String(normalized);
+        localStorage.setItem(STORAGE_KEY_REASONING_MIN_MS, String(normalized));
+      }
+
+      function setActiveAuthUser(sessionData) {
+        const userId = String(sessionData?.user_id || "").trim();
+        const authMode = String(sessionData?.auth_mode || "guest").trim() || "guest";
+        const displayName = String(sessionData?.display_name || "").trim() || userId || "Guest";
+        const resumed = Boolean(sessionData?.resumed);
+
+        state.authMode = authMode;
+        state.activeUserId = userId;
+        state.activeDisplayName = displayName;
+
+        localStorage.setItem(STORAGE_KEY_AUTH_MODE, authMode);
+        if (userId) localStorage.setItem(STORAGE_KEY_AUTH_USER, userId);
+        if (authMode === "guest") {
+          const profileCode = String(sessionData?.profile?.guest_code || "").trim();
+          if (profileCode) localStorage.setItem(STORAGE_KEY_GUEST_CODE, profileCode);
+        }
+
+        const sessionState = resumed ? "resumed" : "new";
+        const navText = `${authMode}: ${displayName}`;
+        if (navAuthState) navAuthState.textContent = navText;
+        if (activeUser) activeUser.textContent = `Active: ${displayName} (${userId || "n/a"}) · ${sessionState} session`;
+      }
+
+      function guestCodeFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return String(params.get("guest") || params.get("code") || "").trim();
+      }
+
+      async function applySessionResult(data, { resetTranscript = true } = {}) {
+        const tid = String(data?.thread_id || "").trim();
+        if (!tid) throw new Error("session API returned empty thread_id");
+        if (resetTranscript) resetConversation({ newThread: false });
+        threadId.value = tid;
+        localStorage.setItem(STORAGE_KEY_THREAD, tid);
+        loadDraftForThread(tid);
+        setStatusJson(data?.status || {});
+        setActiveAuthUser(data || {});
+      }
+
+      async function startGuestSession({ guestCodeOverride = "", newThread = false, resetTranscript = true } = {}) {
+        const queryCode = guestCodeFromUrl();
+        const storedCode = String(localStorage.getItem(STORAGE_KEY_GUEST_CODE) || "").trim();
+        const inputCode = String(guestCode?.value || "").trim();
+        const postCode = String(guestCodeOverride || inputCode || storedCode || "").trim();
+        const query = queryCode ? `?code=${encodeURIComponent(queryCode)}` : "";
+
+        const r = await fetch(`/auth/guest${query}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          // POST has precedence over GET when both provide guest code/new_thread.
+          body: JSON.stringify({ guest_code: postCode || null, new_thread: Boolean(newThread) }),
+        });
+        if (!r.ok) {
+          const body = await r.text();
+          throw new Error(`HTTP ${r.status}: ${body}`);
+        }
+        const data = await r.json();
+        await applySessionResult(data, { resetTranscript });
+        const activeCode = String(data?.profile?.guest_code || "").trim();
+        if (guestCode && activeCode) guestCode.value = activeCode;
+      }
+
+      async function loginWithPassword() {
+        const user = String(authUser?.value || "").trim();
+        const pass = String(authPass?.value || "");
+        if (!user) {
+          errorView.textContent = "user id is required";
+          return;
+        }
+        if (!pass) {
+          errorView.textContent = "password is required";
+          return;
+        }
+        const r = await fetch("/auth/login", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ user_id: user, password: pass, new_thread: false }),
+        });
+        if (!r.ok) {
+          const body = await r.text();
+          throw new Error(`HTTP ${r.status}: ${body}`);
+        }
+        const data = await r.json();
+        await applySessionResult(data, { resetTranscript: true });
+      }
+
+      async function registerWithPassword() {
+        const user = String(authUser?.value || "").trim();
+        const pass = String(authPass?.value || "");
+        if (!user) {
+          errorView.textContent = "user id is required";
+          return;
+        }
+        if (!pass) {
+          errorView.textContent = "password is required";
+          return;
+        }
+        const r = await fetch("/auth/register", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ user_id: user, password: pass, display_name: user, new_thread: true }),
+        });
+        if (!r.ok) {
+          const body = await r.text();
+          throw new Error(`HTTP ${r.status}: ${body}`);
+        }
+        const data = await r.json();
+        await applySessionResult(data, { resetTranscript: true });
+      }
+
+      async function loadMeta() {
+        const r = await fetch("/meta");
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        setBranding({ title: data.ui_title, assistantName: data.assistant_name });
+        meta.innerHTML = "";
+        const rows = [
+          ["title", data.title],
+          ["ui build", UI_BUILD],
+          ["ui title", data.ui_title],
+          ["assistant", data.assistant_name],
+          ["version", data.version],
+          ["model", data.model],
+          ["checkpointer", data.checkpointer],
+          ["domain", data.domain_path],
+          ["tutorial", data.tutorial_path],
+          ["users", data.users_path],
+          ["bootstrap users", data.bootstrap_user_count],
+          ["basic auth", data.basic_auth_enabled],
+          ["registration", data.registration_enabled],
+          ["guest mode", data.guest_enabled],
+        ];
+        for (const [k, v] of rows) {
+          const line = document.createElement("div");
+          line.className = "runtime-line";
+          line.textContent = `${k}: ${v ?? ""}`;
+          meta.appendChild(line);
+        }
+      }
+
+      async function loadTutorial() {
+        try {
+          const r = await fetch("/tutorial");
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const data = await r.json();
+          state.tutorialEnabled = Boolean(data.enabled);
+          state.tutorialSteps = Array.isArray(data.steps) ? data.steps : [];
+        } catch {
+          state.tutorialEnabled = false;
+          state.tutorialSteps = [];
+        }
+      }
+
+      function resolveTarget(stepId) {
+        if (!stepId) return null;
+        return document.querySelector(`[data-tutorial-id="${stepId}"]`);
+      }
+
+      function resolveTargetRect(stepId) {
+        const target = resolveTarget(stepId);
+        if (!target) return null;
+        const rect = target.getBoundingClientRect();
+        return { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
+      }
+
+      function computeCardPosition(rect) {
+        const margin = 16;
+        const width = tutorialCard.offsetWidth;
+        const height = tutorialCard.offsetHeight;
+        const screenW = window.innerWidth;
+        const screenH = window.innerHeight;
+
+        if (!rect) {
+          return {
+            top: Math.max(margin, (screenH - height) / 2),
+            left: Math.max(margin, (screenW - width) / 2),
+          };
+        }
+
+        let top = rect.top + rect.height + 12;
+        if (top + height > screenH - margin) top = rect.top - height - 12;
+        if (top < margin) top = margin;
+
+        let left = rect.left;
+        if (left + width > screenW - margin) left = screenW - width - margin;
+        if (left < margin) left = margin;
+
+        return { top, left };
+      }
+
+      function renderTutorialStep() {
+        if (!state.tutorialSteps.length) return;
+        const step = state.tutorialSteps[state.tutorialIndex] || state.tutorialSteps[0];
+        const stepCount = state.tutorialSteps.length;
+
+        if ((step.id === "runtime-panel" || step.id === "status-panel" || step.id === "advanced-panel") && !state.debugOpen) {
+          setDebugOpen(true);
+        }
+
+        tutorialProgress.textContent = `Step ${state.tutorialIndex + 1} of ${stepCount}`;
+        tutorialTitle.textContent = step.title || step.id || "Tutorial";
+        tutorialBody.innerHTML = renderMarkdownLite(step.body_md || "");
+        tutorialBack.disabled = state.tutorialIndex === 0;
+        tutorialNext.textContent = state.tutorialIndex + 1 >= stepCount ? "Finish" : "Next";
+
+        const rect = resolveTargetRect(step.id);
+        if (rect) {
+          tutorialSpotlight.hidden = false;
+          tutorialSpotlight.style.top = `${rect.top - 8}px`;
+          tutorialSpotlight.style.left = `${rect.left - 8}px`;
+          tutorialSpotlight.style.width = `${rect.width + 16}px`;
+          tutorialSpotlight.style.height = `${rect.height + 16}px`;
+
+          const target = resolveTarget(step.id);
+          if (target) target.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+        } else {
+          tutorialSpotlight.hidden = true;
+        }
+
+        const cardPos = computeCardPosition(rect);
+        tutorialCard.style.top = `${cardPos.top}px`;
+        tutorialCard.style.left = `${cardPos.left}px`;
+      }
+
+      function openTutorial() {
+        if (!state.tutorialEnabled || !state.tutorialSteps.length) return;
+        state.tutorialIndex = 0;
+        tutorialLayer.hidden = false;
+        renderTutorialStep();
+      }
+
+      function closeTutorial() {
+        tutorialLayer.hidden = true;
+        tutorialSpotlight.hidden = true;
+      }
+
+      async function sendMessage({ textOverride = null, clearComposer = true } = {}) {
+        if (state.isStreaming) return;
+
+        const tid = threadId.value.trim();
+        const text = (textOverride ?? message.value).trim();
+        if (!tid) {
+          errorView.textContent = "thread_id is required";
+          return;
+        }
+        if (!text) return;
+
+        errorView.textContent = "";
+        state.lastUserMessage = text;
+
+        const userId = messageId();
+        appendTranscriptMessage({ id: userId, role: "user", text, time: Date.now(), status: "sending" });
+
+        if (clearComposer) {
+          message.value = "";
+          autoResizeComposer();
+          persistDraft();
+        }
+
+        startPendingTurnPlaceholder();
+
+        const path = endpoint.value.trim() || "/chat/stream";
+
+        try {
+          if (path.endsWith("/chat/stream")) {
+            await sendStream(path, tid, text, userId);
+          } else {
+            await sendJson(path, tid, text, userId);
+          }
+        } catch (err) {
+          updateMessageStatus(userId, "failed");
+          failPendingTurn("Request failed. Check error details below.");
+          errorView.textContent = String(err);
+        } finally {
+          updateSendEnabled();
+          message.focus();
+        }
+      }
+
+      async function sendJson(path, tid, text, userId) {
+        setStreaming(true);
+        const r = await fetch(path, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ thread_id: tid, message: text }),
+        });
+
+        if (!r.ok) {
+          const body = await r.text();
+          throw new Error(`HTTP ${r.status}: ${body}`);
+        }
+
+        updateMessageStatus(userId, "sent");
+        const data = await r.json();
+        const cleaned = stripStatusCard(data.message || "", (data.status || {}).user_card_md);
+        finalizePendingTurn(cleaned);
+        setStatusJson(data.status || {});
+        setStreaming(false);
+      }
+
+      async function sendStream(path, tid, text, userId) {
+        setStreaming(true);
+        state.abortController = new AbortController();
+
+        const r = await fetch(path, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ thread_id: tid, message: text }),
+          signal: state.abortController.signal,
+        });
+
+        if (!r.ok) {
+          const body = await r.text();
+          throw new Error(`HTTP ${r.status}: ${body}`);
+        }
+
+        updateMessageStatus(userId, "sent");
+
+        if (!r.body) throw new Error("stream response has no body");
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            while (true) {
+              const idx = buffer.indexOf("\n\n");
+              if (idx === -1) break;
+              const chunk = buffer.slice(0, idx);
+              buffer = buffer.slice(idx + 2);
+
+              for (const line of chunk.split("\n")) {
+                if (!line.startsWith("data: ")) continue;
+                const data = line.slice(6);
+                if (data === "[DONE]") return;
+                handleStreamEvent(data);
+              }
+            }
+          }
+
+          if (state.pendingTurn && !state.pendingTurn.done) {
+            const pendingNode = state.nodesById.get(state.pendingTurn.id);
+            const pendingBody = pendingNode
+              ? pendingNode.querySelector("[data-assistant-body]") || pendingNode.querySelector("[data-message-body]")
+              : null;
+            const pendingText = pendingBody
+              ? pendingBody.getAttribute("data-raw-text") || pendingBody.textContent || ""
+              : "";
+            finalizePendingTurn(pendingText);
+          }
+        } catch (err) {
+          if (err && err.name === "AbortError") {
+            appendReasoningToPendingTurn("compose", "Generation stopped by user.", "status");
+            finalizePendingTurn("Generation stopped by user.");
+          } else {
+            failPendingTurn("Request failed while streaming.");
+            throw err;
+          }
+        } finally {
+          state.abortController = null;
+          setStreaming(false);
+        }
+      }
+
+      function handleStreamEvent(data) {
+        let payload;
+        try {
+          payload = JSON.parse(data);
+        } catch {
+          return;
+        }
+
+        if (payload.type === "reasoning_generated_live") {
+          const msg = String(payload.message || "");
+          const node = String(payload.node || "");
+          setPendingTurnLiveReasoning(node, msg, "generated", true, { summaryIndex: payload.summary_index });
+          return;
+        }
+
+        if (payload.type === "reasoning_generated") {
+          const msg = String(payload.message || "");
+          const node = String(payload.node || "");
+          appendReasoningToPendingTurn(node, msg, "generated", { summaryIndex: payload.summary_index });
+          return;
+        }
+
+        if (payload.type === "reasoning_deterministic") {
+          const msg = String(payload.message || "");
+          const node = String(payload.node || "");
+          appendReasoningToPendingTurn(node, msg, "deterministic");
+          return;
+        }
+
+        if (payload.type === "reasoning_status") {
+          const msg = String(payload.message || "");
+          const node = String(payload.node || "");
+          appendReasoningToPendingTurn(node, msg, "status");
+          return;
+        }
+
+        // Backward compatibility with older stream payloads.
+        if (payload.type === "reasoning") {
+          const msg = String(payload.message || "");
+          const node = String(payload.node || "");
+          appendReasoningToPendingTurn(node, msg, "status");
+          return;
+        }
+
+        if (payload.type === "assistant") {
+          finalizePendingTurn(payload.message || "");
+          return;
+        }
+
+        if (payload.type === "status") {
+          setStatusJson(payload.status || {});
+          if (state.pendingAssistantId) {
+            const currentNode = state.nodesById.get(state.pendingAssistantId);
+            hideThinkingUi(currentNode);
+            const body = currentNode
+              ? currentNode.querySelector("[data-assistant-body]") || currentNode.querySelector("[data-message-body]")
+              : null;
+            const currentText = body ? body.getAttribute("data-raw-text") || body.textContent || "" : "";
+            const cleaned = stripStatusCard(currentText, (payload.status || {}).user_card_md);
+            updateMessageText(state.pendingAssistantId, cleaned);
+            state.pendingAssistantId = null;
+          }
+          return;
+        }
+
+        if (payload.type === "error") {
+          failPendingTurn("The model returned an error.");
+          errorView.textContent = payload.message || "stream error";
+        }
+      }
+
+      async function refreshStatus() {
+        const tid = threadId.value.trim();
+        if (!tid) {
+          errorView.textContent = "thread_id is required";
+          return;
+        }
+        errorView.textContent = "";
+        const r = await fetch(`/threads/${encodeURIComponent(tid)}/status`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        setStatusJson(data.status || {});
+      }
+
+      function applyTheme(theme) {
+        if (theme === "auto") {
+          document.body.removeAttribute("data-theme");
+        } else {
+          document.body.setAttribute("data-theme", theme);
+        }
+        themeToggle.textContent = `Theme: ${theme === "auto" ? "Auto" : theme[0].toUpperCase() + theme.slice(1)}`;
+      }
+
+      function cycleTheme() {
+        const current = localStorage.getItem(STORAGE_KEY_THEME) || "auto";
+        const next = current === "auto" ? "dark" : current === "dark" ? "light" : "auto";
+        localStorage.setItem(STORAGE_KEY_THEME, next);
+        applyTheme(next);
+      }
+
+      function applyDensity(density) {
+        document.body.setAttribute("data-density", density);
+        densityToggle.textContent = `Density: ${density === "compact" ? "Compact" : "Comfortable"}`;
+      }
+
+      function cycleDensity() {
+        const current = localStorage.getItem(STORAGE_KEY_DENSITY) || "comfortable";
+        const next = current === "comfortable" ? "compact" : "comfortable";
+        localStorage.setItem(STORAGE_KEY_DENSITY, next);
+        applyDensity(next);
+      }
+
+      function applyLiveAnnouncements(enabled) {
+        state.liveAnnouncements = enabled;
+        const value = enabled ? "polite" : "off";
+        log.setAttribute("aria-live", value);
+        liveToggle.textContent = `Live: ${enabled ? "On" : "Paused"}`;
+      }
+
+      function toggleLiveAnnouncements() {
+        const next = !state.liveAnnouncements;
+        localStorage.setItem(STORAGE_KEY_LIVE, String(next));
+        applyLiveAnnouncements(next);
+      }
+
+      function resetConversation({ newThread = false } = {}) {
+        if (state.pendingTurn) {
+          clearPendingTurnLiveTimer(state.pendingTurn);
+          clearPendingTurnLiveScroller(state.pendingTurn);
+          clearPendingTurnHeartbeat(state.pendingTurn);
+          state.pendingTurn.livePreferredSummaryIndex = -1;
+          state.pendingTurn.done = true;
+        }
+        log.innerHTML = "";
+        state.transcript = [];
+        state.nodesById.clear();
+        state.unreadCount = 0;
+        state.lastUserMessage = "";
+        state.pendingAssistantId = null;
+        state.pendingTurn = null;
+        setStatusJson({});
+        errorView.textContent = "";
+        updateJumpButton();
+
+        if (newThread) {
+          const oldThread = threadId.value.trim();
+          clearDraftForThread(oldThread);
+          threadId.value = `haiku-ui-${Date.now()}`;
+          localStorage.setItem(STORAGE_KEY_THREAD, threadId.value.trim());
+          loadDraftForThread(threadId.value.trim());
+        }
+      }
+
+      tutorialOpen.addEventListener("click", () => {
+        if (!tutorialLayer.hidden) closeTutorial();
+        else openTutorial();
+      });
+
+      tutorialClose.addEventListener("click", closeTutorial);
+      tutorialDismiss.addEventListener("click", () => {
+        localStorage.setItem(STORAGE_KEY_TUTORIAL, "1");
+        closeTutorial();
+      });
+      tutorialBack.addEventListener("click", () => {
+        state.tutorialIndex = Math.max(0, state.tutorialIndex - 1);
+        renderTutorialStep();
+      });
+      tutorialNext.addEventListener("click", () => {
+        if (state.tutorialIndex + 1 >= state.tutorialSteps.length) {
+          closeTutorial();
+          return;
+        }
+        state.tutorialIndex = Math.min(state.tutorialSteps.length - 1, state.tutorialIndex + 1);
+        renderTutorialStep();
+      });
+
+      newChatBtn.addEventListener("click", () => resetConversation({ newThread: true }));
+      debugToggle.addEventListener("click", () => {
+        const next = !state.debugOpen;
+        setDebugOpen(next);
+      });
+      reasoningDisplaySelect.addEventListener("change", () => setReasoningDisplay(reasoningDisplaySelect.value));
+      reasoningMinMsInput.addEventListener("change", () => setReasoningMinMs(reasoningMinMsInput.value));
+      reasoningMinMsInput.addEventListener("blur", () => setReasoningMinMs(reasoningMinMsInput.value));
+      loginBtn.addEventListener("click", () => {
+        errorView.textContent = "";
+        loginWithPassword().catch((err) => (errorView.textContent = String(err)));
+      });
+      registerBtn.addEventListener("click", () => {
+        errorView.textContent = "";
+        registerWithPassword().catch((err) => (errorView.textContent = String(err)));
+      });
+      guestBtn.addEventListener("click", () => {
+        errorView.textContent = "";
+        startGuestSession({ guestCodeOverride: String(guestCode?.value || "").trim(), newThread: true }).catch(
+          (err) => (errorView.textContent = String(err))
+        );
+      });
+
+      sendBtn.addEventListener("click", () => sendMessage().catch((err) => (errorView.textContent = String(err))));
+      stopBtn.addEventListener("click", () => {
+        if (state.abortController) state.abortController.abort();
+      });
+      regenBtn.addEventListener("click", () => {
+        if (!state.lastUserMessage) return;
+        sendMessage({ textOverride: state.lastUserMessage, clearComposer: false }).catch(
+          (err) => (errorView.textContent = String(err))
+        );
+      });
+
+      clearBtn.addEventListener("click", () => resetConversation({ newThread: false }));
+
+      refreshStatusBtn.addEventListener("click", () => {
+        refreshStatus().catch((err) => {
+          errorView.textContent = String(err);
+        });
+      });
+
+      jumpBottomBtn.addEventListener("click", () => {
+        state.stickToBottom = true;
+        scrollTranscriptToBottom(true);
+      });
+
+      themeToggle.addEventListener("click", cycleTheme);
+      densityToggle.addEventListener("click", cycleDensity);
+      liveToggle.addEventListener("click", toggleLiveAnnouncements);
+
+      message.addEventListener("input", () => {
+        autoResizeComposer();
+        persistDraft();
+        updateSendEnabled();
+      });
+
+      message.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" && !ev.shiftKey) {
+          ev.preventDefault();
+          sendMessage().catch((err) => (errorView.textContent = String(err)));
+        }
+      });
+
+      authPass.addEventListener("keydown", (ev) => {
+        if (ev.key !== "Enter") return;
+        ev.preventDefault();
+        loginWithPassword().catch((err) => (errorView.textContent = String(err)));
+      });
+
+      authUser.addEventListener("keydown", (ev) => {
+        if (ev.key !== "Enter") return;
+        ev.preventDefault();
+        loginWithPassword().catch((err) => (errorView.textContent = String(err)));
+      });
+
+      guestCode.addEventListener("keydown", (ev) => {
+        if (ev.key !== "Enter") return;
+        ev.preventDefault();
+        startGuestSession({ guestCodeOverride: String(guestCode?.value || "").trim(), newThread: true }).catch(
+          (err) => (errorView.textContent = String(err))
+        );
+      });
+
+      threadId.addEventListener("input", () => {
+        localStorage.setItem(STORAGE_KEY_THREAD, threadId.value.trim());
+        loadDraftForThread(threadId.value.trim());
+      });
+
+      log.addEventListener("scroll", () => {
+        state.stickToBottom = nearBottom(log);
+        if (state.stickToBottom) state.unreadCount = 0;
+        updateJumpButton();
+      });
+
+      document.querySelectorAll("[data-quick]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          message.value = btn.getAttribute("data-quick") || "";
+          autoResizeComposer();
+          persistDraft();
+          updateSendEnabled();
+        });
+      });
+
+      window.addEventListener("resize", () => {
+        if (!tutorialLayer.hidden) renderTutorialStep();
+      });
+
+      window.addEventListener(
+        "scroll",
+        () => {
+          if (!tutorialLayer.hidden) renderTutorialStep();
+        },
+        true
+      );
+
+      (async () => {
+        try {
+          setBranding();
+
+          const savedTheme = localStorage.getItem(STORAGE_KEY_THEME) || "auto";
+          applyTheme(savedTheme);
+
+          const savedDensity = localStorage.getItem(STORAGE_KEY_DENSITY) || "comfortable";
+          applyDensity(savedDensity);
+
+          const savedLive = localStorage.getItem(STORAGE_KEY_LIVE);
+          applyLiveAnnouncements(savedLive === null ? true : savedLive === "true");
+
+          const savedDebug = localStorage.getItem(STORAGE_KEY_DEBUG_OPEN);
+          setDebugOpen(savedDebug === "true");
+
+          const savedReasoningDisplay = localStorage.getItem(STORAGE_KEY_REASONING_DISPLAY) || "both";
+          setReasoningDisplay(savedReasoningDisplay);
+          const savedReasoningMinMs = localStorage.getItem(STORAGE_KEY_REASONING_MIN_MS) || "300";
+          setReasoningMinMs(savedReasoningMinMs);
+
+          const savedAuthUser = String(localStorage.getItem(STORAGE_KEY_AUTH_USER) || "").trim();
+          if (savedAuthUser) authUser.value = savedAuthUser;
+          const savedGuestCode = String(localStorage.getItem(STORAGE_KEY_GUEST_CODE) || "").trim();
+          if (savedGuestCode) guestCode.value = savedGuestCode;
+
+          const lastThread = localStorage.getItem(STORAGE_KEY_THREAD);
+          threadId.value = lastThread || `haiku-ui-${Date.now()}`;
+
+          await loadMeta();
+          await loadTutorial();
+          await startGuestSession({
+            guestCodeOverride: savedGuestCode,
+            newThread: false,
+            resetTranscript: false,
+          });
+          loadDraftForThread(threadId.value.trim());
+
+          const dismissed = localStorage.getItem(STORAGE_KEY_TUTORIAL) === "1";
+          if (state.tutorialEnabled && !dismissed && state.tutorialSteps.length) {
+            openTutorial();
+          }
+        } catch (err) {
+          errorView.textContent = String(err);
+        }
+
+        autoResizeComposer();
+        updateSendEnabled();
+        message.focus();
+      })();
+    </script>
+  </body>
+</html>

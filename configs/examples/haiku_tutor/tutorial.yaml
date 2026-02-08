@@ -1,0 +1,46 @@
+enabled: true
+start_when:
+  - ui_overlay
+
+steps:
+  - id: "runtime-panel"
+    title: "Runtime Snapshot"
+    body_md: |
+      Confirm model and config paths before testing.
+      This tutorial is a **UI overlay** and does not consume chat turns.
+    cta: "Next"
+
+  - id: "compose-panel"
+    title: "Compose Turn"
+    body_md: |
+      Pick a thread id and send a user message.
+      Keep the same thread id to test continuity.
+    cta: "Next"
+
+  - id: "quick-actions"
+    title: "Quick Prompts"
+    body_md: |
+      Use one-click prompts to speed up tutorial and smoke testing.
+      You can always edit the text before sending.
+    cta: "Next"
+
+  - id: "reasoning-panel"
+    title: "Node Reasoning Stream"
+    body_md: |
+      `/chat/stream` now reports each LangGraph node as a reasoning event.
+      Watch node order and decisions turn by turn.
+    cta: "Next"
+
+  - id: "transcript-panel"
+    title: "Transcript"
+    body_md: |
+      The transcript is conversation-first: user + assistant turns.
+      Open the Developer panel if you want to inspect reasoning updates inline.
+    cta: "Next"
+
+  - id: "status-panel"
+    title: "Status Memory"
+    body_md: |
+      The status panel shows persisted bot memory for the thread.
+      Use `refresh status` to inspect state after each turn.
+    cta: "Finish"

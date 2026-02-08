@@ -1,0 +1,24 @@
+users:
+  - id: demo_haiku_student
+    password: demo-haiku-123
+    display_name: Demo Haiku Student
+    profile:
+      writing_level: beginner
+      goals:
+        - learn 5-7-5 structure
+        - improve sensory imagery
+      preferences:
+        feedback_style: encouraging
+        focus: concrete revisions
+
+  - id: returning_poet
+    password: demo-poet-123
+    display_name: Returning Poet
+    profile:
+      writing_level: intermediate
+      goals:
+        - tighten line breaks
+        - use stronger seasonal anchors
+      preferences:
+        feedback_style: direct
+        focus: precision and rhythm

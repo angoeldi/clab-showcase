@@ -1,0 +1,24 @@
+users:
+  - id: demo_mi_client
+    password: demo-mi-123
+    display_name: Demo MI Client
+    profile:
+      context: late-night scrolling
+      goals:
+        - reduce social media use after 10pm
+        - improve sleep consistency
+      preferences:
+        coaching_style: reflective
+        focus: small reversible experiments
+
+  - id: returning_wellbeing_user
+    password: demo-wellbeing-123
+    display_name: Returning Wellbeing User
+    profile:
+      context: workday distraction
+      goals:
+        - reduce impulsive feed checks during work blocks
+        - maintain two scheduled social media windows
+      preferences:
+        coaching_style: direct
+        focus: accountability and review

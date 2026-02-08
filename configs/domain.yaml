@@ -1,0 +1,105 @@
+meta:
+  name: "Conversational Labour Template"
+  version: "0.1"
+  description: "Domain-general scaffold. Replace with your domain theory."
+
+runtime:
+  model: "gpt-5.2"
+  reasoning_effort:
+    analyze: "low"
+    act: "low"
+    compose: "medium"
+  store_responses: true
+
+stages:
+  - id: "intake"
+    goal: "Elicit goal, context, constraints, andTopics; calibrate expectations."
+  - id: "plan"
+    goal: "Agree on a plan and next step."
+  - id: "execute"
+    goal: "Do the work stepwise; keep the user on track."
+  - id: "review"
+    goal: "Reflect, consolidate, and update plan."
+
+constructs:
+  - id: "goal_clarity"
+    label: "Goal clarity"
+    scale: {min: 0, max: 5, anchor_min: "unclear", anchor_max: "crisp"}
+  - id: "motivation"
+    label: "Motivation"
+    scale: {min: 0, max: 5, anchor_min: "low", anchor_max: "high"}
+  - id: "risk"
+    label: "Risk / urgency"
+    scale: {min: 0, max: 5, anchor_min: "none", anchor_max: "urgent"}
+
+interventions:
+  - id: "PROBE"
+    purpose: "Ask targeted questions to fill missing info."
+    constraints:
+      must: ["one_question_at_a_time", "ask_before_assuming"]
+  - id: "REFLECT"
+    purpose: "Mirror and compress; validate; label hypotheses."
+  - id: "INSTRUCT"
+    purpose: "Explain or teach stepwise; check understanding."
+  - id: "CHALLENGE"
+    purpose: "Gently test assumptions; offer reframes."
+  - id: "REDIRECT"
+    purpose: "Bring the user back to the goal and next step."
+  - id: "SUMMARISE"
+    purpose: "Produce a status card and a crisp next step."
+  - id: "SAFETY"
+    purpose: "Apply high-stakes safety policy and escalate appropriately."
+
+action_policy:
+  rules:
+    - when:
+        stage_in: ["intake"]
+        missing_any: ["goal"]
+      then:
+        action: "PROBE"
+        params:
+          question: "What is the outcome you want, in one sentence?"
+    - when:
+        stage_in: ["intake"]
+        missing_any: ["constraints"]
+      then:
+        action: "PROBE"
+        params:
+          question: "What constraints matter (time, resources, stakes, preferences)?"
+    - when:
+        risk_gte: 4
+      then:
+        action: "SAFETY"
+        params:
+          mode: "de_escalate_and_refer"
+    - when:
+        default: true
+      then:
+        action: "SUMMARISE"
+        params:
+          focus: "progress_and_next_step"
+
+  llm_fallback:
+    enabled: true
+    allowed_actions: ["PROBE","REFLECT","INSTRUCT","CHALLENGE","REDIRECT","SUMMARISE"]
+    disallowed_actions: ["DIAGNOSE","PRESCRIBE","COERCE","THREATEN"]
+
+safety:
+  red_flags:
+    - id: "self_harm"
+      patterns: ["suicide", "kill myself", "self harm"]
+      response_mode: "crisis"
+    - id: "medical_emergency"
+      patterns: ["can't breathe", "chest pain", "stroke"]
+      response_mode: "emergency"
+  policies:
+    crisis:
+      instruction: "Encourage immediate help and provide local crisis resources; do not provide detailed methods."
+    emergency:
+      instruction: "Encourage contacting emergency services immediately; do not diagnose."
+
+writing_style:
+  tone: "clear, direct, supportive"
+  formatting:
+    max_bullets: 8
+    include_status_card: true

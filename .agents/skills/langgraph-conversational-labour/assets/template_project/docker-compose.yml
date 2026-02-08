@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      CLAB_MODEL: "${CLAB_MODEL:-}"
+      CLAB_CHECKPOINTER: "${CLAB_CHECKPOINTER:-sqlite}"
+      CLAB_SQLITE_PATH: "${CLAB_SQLITE_PATH:-./.clab/checkpoints.sqlite3}"
+      CLAB_POSTGRES_URI: "${CLAB_POSTGRES_URI:-}"
+      CLAB_DOMAIN_PATH: "${CLAB_DOMAIN_PATH:-configs/domain.yaml}"
+      CLAB_TUTORIAL_PATH: "${CLAB_TUTORIAL_PATH:-configs/tutorial.yaml}"
+    volumes:
+      - ./.clab:/app/.clab
+
+  db:
+    image: postgres:16
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

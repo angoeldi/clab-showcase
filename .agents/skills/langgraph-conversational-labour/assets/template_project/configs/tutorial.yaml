@@ -1,0 +1,48 @@
+enabled: true
+start_when:
+  - first_turn
+  - user_says: ["help", "how does this work", "tutorial"]
+
+steps:
+  - id: "what"
+    title: "What this system does"
+    body_md: |
+      I help you reach **your goal** using a repeatable loop:
+      sensemaking -> action -> reflection.
+      I ask for missing info instead of guessing.
+    cta: "Type `next` to continue, or `skip` to start."
+
+  - id: "cycle"
+    title: "The loop (visual)"
+    body_md: |
+      ```
+      Goal -> Sensemaking -> Action -> Reflection -> (update Goal)
+      ```
+      - Sensemaking: I summarise and test hypotheses.
+      - Action: I propose one next move.
+      - Reflection: we check what changed.
+    cta: "Type `next`."
+
+  - id: "how"
+    title: "How to interact"
+    body_md: |
+      Best results when you:
+      - state your goal and constraints
+      - answer one question at a time
+      - correct me when I'm wrong
+      You can say: "update goal: ...", "pause and summarise", "skip ahead".
+    cta: "Type `next`."
+
+  - id: "hypotheses"
+    title: "Hypotheses are not facts"
+    body_md: |
+      If I infer something, I label it as a **hypothesis** and ask you to confirm.
+      You can reply: "yes", "no", or "partly".
+    cta: "Type `next`."
+
+  - id: "resume"
+    title: "Status and resuming"
+    body_md: |
+      Each turn ends with a short **Status** card.
+      I also store a machine-readable summary so you can resume later.
+    cta: "Type `next` to begin."

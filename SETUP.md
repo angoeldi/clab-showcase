@@ -183,6 +183,138 @@ Naming note:
 
 ## Prompt For Creating A New App
 
+Domain-pack zip contract (what should be inside):
+- Required: one domain config YAML (for example `domain_<app>.yaml`)
+- Required: one tutorial config YAML (for example `tutorial_<app>.yaml`)
+- Optional but recommended: one references/notes file (for example `references_<app>.md`)
+- Optional: one bootstrap users YAML (for example `users_<app>.yaml`)
+
+If `users_<app>.yaml` is not provided, keep the scaffolded users file and edit it manually.
+
+### What must be in `domain.yaml`
+
+Use this structure (minimum + recommended):
+
+```yaml
+runtime:
+  model: "gpt-5-nano"        # recommended
+  store_responses: true      # optional (default true)
+  reasoning_effort:          # optional
+    analyze: "low"           # supported keys: analyze, act, compose
+    act: "low"               # use "act" (not "decide_action")
+    compose: "medium"
+
+stages:                      # recommended
+  - id: "engage"
+    label: "Engage"
+    purpose: "..."
+
+constructs:                  # recommended
+  - id: "goal_clarity"       # keep: goal_clarity, motivation, risk
+    label: "Goal clarity"
+  - id: "motivation"
+    label: "Motivation"
+  - id: "risk"
+    label: "Risk"
+
+interventions:               # recommended
+  - id: "PROBE"
+    label: "Open question"
+  - id: "SUMMARISE"
+    label: "Summary"
+
+action_policy:               # required for deterministic routing
+  rules:
+    - when:
+        stage_in: ["engage"]         # optional
+        risk_gte: 4                  # optional
+        missing_any: ["goal"]        # optional; supported: goal, constraints
+      then:
+        action: "PROBE"
+        params:
+          question: "What do you want to change?"
+    - when:
+        default: true
+      then:
+        action: "SUMMARISE"
+        params: {}
+  llm_fallback:
+    enabled: true
+    allowed_actions: ["PROBE", "SUMMARISE", "SAFETY"]
+
+writing_style:               # optional but strongly recommended
+  tone: "empathetic, concise"
+  formatting:
+    include_status_card: true
+
+safety:                      # optional but strongly recommended
+  red_flags:
+    - id: "self_harm"
+      patterns: ["suicide", "kill myself", "self harm"]
+  policies:
+    crisis:
+      do: ["Encourage immediate support."]
+      dont: ["Do not provide harmful instructions."]
+      resources: ["US/Canada: 988 Suicide & Crisis Lifeline."]
+```
+
+Important policy syntax note:
+- Rules must use `when` + `then`.
+- Older shorthand rule shapes (without `when`/`then`) are ignored by this runtime.
+
+### What must be in `tutorial.yaml`
+
+For this repo's default UI-overlay onboarding:
+
+```yaml
+enabled: true
+start_when:
+  - ui_overlay
+steps:
+  - id: "runtime-panel"      # should match a UI `data-tutorial-id`
+    title: "..."
+    body_md: "..."
+    cta: "Next"
+```
+
+Supported step fields:
+- `id` (string)
+- `title` (string)
+- `body_md` (markdown text)
+- `cta` (button label)
+
+Optional chat-trigger mode is also supported by backend parser:
+- `first_turn`
+- `user_says` list of phrases
+
+### What must be in `users.yaml`
+
+```yaml
+users:
+  - id: demo_user
+    password: demo-pass-123
+    display_name: Demo User
+    profile:
+      role: "tester"
+```
+
+Rules:
+- `id` and `password` are required for each bootstrap user.
+- `display_name` and `profile` are optional.
+- `id` is normalized to lowercase alphanumerics plus `_`, `-`, `.`.
+- Duplicate normalized ids are invalid.
+- File can be either:
+  - a mapping with top-level `users: [...]` (recommended), or
+  - a raw list of user objects.
+
+### Mapping zip files into the app config folder
+
+After cloning a new app, copy/rename files to:
+- `configs/examples/<config-id>/domain.yaml`
+- `configs/examples/<config-id>/tutorial.yaml`
+- `configs/examples/<config-id>/users.yaml` (if provided)
+- `configs/examples/<config-id>/references.md` (optional)
+
 Prompt template:
 
 ```text
@@ -191,16 +323,6 @@ The domain pack zip is <ZIP_FILE>.
 Use the existing skills and cloning flow (do not rebuild from scratch).
 Create it in a new folder, adapt domain/tutorial/users as needed, and verify it runs in Docker.
 Keep the current default app unchanged unless I ask otherwise.
-```
-
-MI example prompt:
-
-```text
-Build a new app in this repo using the same architecture as the existing app.
-The domain pack zip is mi_social_media_addiction_domain_pack_2026-02-07_v2.zip.
-Use the existing skills and cloning flow (do not rebuild from scratch).
-Create it in a new folder, adapt domain/tutorial/users as needed, and verify it runs in Docker.
-Keep the current default haiku app unchanged.
 ```
 
 ## Smoke Checks

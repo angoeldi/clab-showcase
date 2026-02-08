@@ -71,11 +71,11 @@ A reusable prompt template is available in `SETUP.md` under "Prompt For Creating
 
 ## MI App Screenshots
 
-![MI tutorial overlay](screenshot_tutorial.png)
+![MI tutorial overlay](docs/images/screenshot_tutorial.png)
 
-![MI reasoning stream](screenshot_reasoning.png)
+![MI reasoning stream](docs/images/screenshot_reasoning.png)
 
-![MI assistant response](screenshot_answer.png)
+![MI assistant response](docs/images/screenshot_answer.png)
 
 ## Skills Included
 
